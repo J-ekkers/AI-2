@@ -2,6 +2,9 @@
 class AIWrapper {
     private $ingredients = [];
     private $response = '';
+    private $apiKey;
+    private $model;
+    private $apiUrl = 'https://api.openai.com/v1/chat/completions';
 
     public function __construct() {
     // Controleer of config beschikbaar is
@@ -26,4 +29,6 @@ class AIWrapper {
         $this->response = "Recept met $ingredientsList wordt verwerkt";
         return $this->response;
     }
+
+
 }
