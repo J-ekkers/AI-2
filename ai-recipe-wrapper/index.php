@@ -1,6 +1,6 @@
 <?php
-require_once 'config/config.php';
-require_once 'classes/AIWrapper.php';
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/classes/AIWrapper.php';
 
 $recipe = '';
 $error = '';
@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['ingredients'])) {
     try {
         $ingredients = explode(',', $_POST['ingredients']);
         $ingredients = array_map('trim', $ingredients);
-        $wrapper = new AIWrapper(OPENAI_API_KEY);
+        $wrapper = new AIWrapper();
         $recipe = $wrapper->generateRecipe($ingredients);
     } catch (Exception $e) {
         $error = "Error: " . $e->getMessage();

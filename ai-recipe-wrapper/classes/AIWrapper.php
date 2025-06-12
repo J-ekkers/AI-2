@@ -1,6 +1,5 @@
 <?php
-require_once 'config/config.php';
-require_once 'classes/AIWrapper.php';
+require_once __DIR__ . '/../config/config.php';
 
 class AIWrapper {
     private $ingredients = [];
@@ -10,11 +9,20 @@ class AIWrapper {
     private $apiUrl = 'https://api.openai.com/v1/chat/completions';
 
     public function __construct($apiKey = null, $model = 'gpt-3.5-turbo') {
-        $this->apiKey = $apiKey ?? (defined('OPENAI_API_KEY') ? OPENAI_API_KEY : null);
-        $this->model = $model;
-        if (!$this->apiKey) {
-            throw new Exception('OpenAI API key is not set.');
+        if ($apiKey === null) {
+            if (!defined('OPENAI_API_KEY')) {
+                throw new Exception('OpenAI API key is not defined in config.php');
+            }
+            $this->apiKey = OPENAI_API_KEY;
+        } else {
+            $this->apiKey = $apiKey;
         }
+        
+        if (empty($this->apiKey)) {
+            throw new Exception('OpenAI API key is empty');
+        }
+        
+        $this->model = $model;
     }
 
     public function processInput($ingredients) {
@@ -38,7 +46,7 @@ class AIWrapper {
             throw new Exception('Geef minimaal één ingrediënt op');
         }
         $ingredientsList = implode(', ', $ingredients);
-        $prompt = "Geef me een recept op basis van deze ingrediënten: $ingredients.
+        $prompt = "BELANGRIJK! GEBRUIK ALLEEN DE GEGEVEN INGREDIËNTEN. Geef me een recept op basis van deze ingrediënten: $ingredientsList.
 Retourneer ALLEEN een JSON object met de volgende structuur:
 {
 \"naam\": \"[receptnaam]\",
@@ -57,7 +65,7 @@ Retourneer ALLEEN een JSON object met de volgende structuur:
                 ['role' => 'system', 'content' => 'Je bent een expert chef.'],
                 ['role' => 'user', 'content' => $prompt]
             ],
-            'temperature' => 0.7
+            'temperature' => 0.1
         ];
 
         $ch = curl_init($this->apiUrl);
@@ -121,65 +129,23 @@ class Recipe {
 }
 
 class RecipeFormatter {
-    // Voeg deze methode toe aan je RecipeFormatter class
-    public function tryExtractRecipe(string $rawOutput): ?Recipe {
-    // Eerst proberen als JSON te parsen
-    $recipe = $this->formatRecipe($rawOutput);
-    if ($recipe) return $recipe;
-    // Als dat mislukt, proberen we een minder strenge methode
-    // Bijvoorbeeld: reguliere expressies gebruiken om data te extraheren
-    $naam = $this->extractName($rawOutput);
-    $ingrediënten = $this->extractIngredients($rawOutput);
-    // ... andere extracties
-    if ($naam && !empty($ingrediënten)) {
-    return new Recipe($naam, $ingrediënten, "Onbekend", [], "Onbekend");
+    public function formatRecipe(string $rawOutput): ?Recipe {
+        try {
+            $data = json_decode($rawOutput, true);
+            if (!$data || !isset($data['naam'], $data['ingrediënten'], $data['bereidingstijd'], 
+                $data['stappen'], $data['moeilijkheidsgraad'])) {
+                return null;
+            }
+            
+            return new Recipe(
+                $data['naam'],
+                $data['ingrediënten'],
+                $data['bereidingstijd'],
+                $data['stappen'],
+                $data['moeilijkheidsgraad']
+            );
+        } catch (Exception $e) {
+            return null;
+        }
     }
-    return null;
-    }
-    // Hulpmethoden voor extractie via regex
-    private function extractName($text) { /* ... */ }
-    private function extractIngredients($text) { /* ... */ }
-    }
-
-// Stuur prompt naar API en ontvang response
-$response = $openai->chat([
-    'model' => 'gpt-3.5-turbo',
-    'messages' => [
-        ['role' => 'user', 'content' => $prompt]
-    ],
-]);
-$rawOutput = $response->choices[0]->message->content;
-
-// Gebruik de formatter om de output te verwerken
-$formatter = new RecipeFormatter();
-$recipe = $formatter->formatRecipe($rawOutput);
-
-if ($recipe) {
-    // Geldig recept ontvangen, toon aan gebruiker
-    displayRecipe($recipe);
-} else {
-    // Geen geldig recept, toon foutmelding
-    echo "Sorry, er ging iets mis bij het genereren van het recept.";
-}
-
-function displayRecipe(Recipe $recipe) {
-    echo '<div class="recipe">';
-    echo '<h6>' . htmlspecialchars($recipe->naam) . '</h6>';
-    echo '<div class="recipe-details">';
-    echo '<p><strong>Bereidingstijd:</strong> ' . htmlspecialchars($recipe->bereidingstijd) . '</p>';
-    echo '<p><strong>Moeilijkheidsgraad:</strong> ' . htmlspecialchars($recipe->moeilijkheidsgraad) . '</p>';
-    echo '</div>';
-    echo '<h1>Ingrediënten:</h1>';
-    echo '<ul>';
-    foreach ($recipe->ingrediënten as $ingredient) {
-        echo '<li>' . htmlspecialchars($ingredient) . '</li>';
-    }
-    echo '</ul>';
-    echo '<h1>Bereidingswijze:</h1>';
-    echo '<ol>';
-    foreach ($recipe->stappen as $stap) {
-        echo '<li>' . htmlspecialchars($stap) . '</li>';
-    }
-    echo '</ol>';
-    echo '</div>';
 }
