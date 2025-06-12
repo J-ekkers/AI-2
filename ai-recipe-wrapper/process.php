@@ -1,4 +1,5 @@
 <?php
+require_once 'config/config.php';
 // Inclusief de AIWrapper klasse
 require_once 'classes/AIWrapper.php';
 // Controleer of het formulier is verzonden
@@ -14,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ingredients'])) {
         $ingredients = array_map('trim', explode(',', $ingredientsInput));
 
         // Maak een nieuwe instantie van de AIWrapper
-        $wrapper = new AIWrapper();
+        $wrapper = new AIWrapper(OPENAI_API_KEY);
 
         // Verwerk de ingrediënten
         $wrapper->processInput($ingredients);
